@@ -1,0 +1,47 @@
+name: smoke
+# Manual live checks that the hermetic test suite cannot do: the README demo against real
+# Wikipedia pages, a package build, and (optionally) one real model provider.
+# Run it from the Actions tab: smoke -> Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Optional judge model, e.g. anthropic/<model> or openai/<model>. Needs the matching repo secret.
+        default: ""
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]" build
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: Live demo, deterministic checks only
+        run: |
+          set +e
+          saysso check examples/demo_report.md -v --json demo.json --html demo.html | tee demo.txt
+          echo "exit code: ${PIPESTATUS[0]}"
+      - name: Live demo with a real model
+        if: ${{ inputs.model != '' }}
+        env:
+          SMOKE_MODEL: ${{ inputs.model }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set +e
+          saysso check examples/demo_report.md -v --model "$SMOKE_MODEL" --max-llm-calls 20 \
+            --json model.json | tee model.txt
+          echo "exit code: ${PIPESTATUS[0]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-output
+          path: |
+            demo.*
+            model.*
+            dist/
