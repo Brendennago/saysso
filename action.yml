@@ -1,0 +1,58 @@
+name: saysso
+description: Check that every cited source in your reports actually supports the claim it is attached to.
+author: saysso contributors
+branding:
+  icon: check-circle
+  color: blue
+inputs:
+  files:
+    description: Report files to check. Space-separated paths or globs (for example "docs/**/*.md").
+    required: true
+  fail-under:
+    description: Fail the job if faithfulness (share of judged claims that hold up) is below this, 0 to 1.
+    default: "0.9"
+  model:
+    description: Optional judge model, for example anthropic/<model>. Put the provider key in the job env, never here.
+    default: ""
+  args:
+    description: Extra arguments passed to saysso check, for example "--fix --search openalex".
+    default: ""
+  sarif:
+    description: Where to write SARIF output (upload it with github/codeql-action/upload-sarif).
+    default: saysso.sarif
+  version:
+    description: saysso version to install. Pin it for reproducible runs; empty installs the latest.
+    default: ""
+runs:
+  using: composite
+  steps:
+    # Pin this action by commit SHA in your workflow (uses: Brendennago/saysso@<full-sha>), not by tag.
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install saysso
+      shell: bash
+      env:
+        CP_VERSION: ${{ inputs.version }}
+      run: |
+        if [ -n "$CP_VERSION" ]; then python -m pip install "saysso==$CP_VERSION"; else python -m pip install saysso; fi
+    - name: Check citations
+      shell: bash
+      # Inputs go through env vars, never interpolated into the script, so they cannot inject shell commands.
+      env:
+        CP_FILES: ${{ inputs.files }}
+        CP_FAIL_UNDER: ${{ inputs.fail-under }}
+        CP_MODEL: ${{ inputs.model }}
+        CP_ARGS: ${{ inputs.args }}
+        CP_SARIF: ${{ inputs.sarif }}
+      run: |
+        shopt -s globstar nullglob
+        files=()
+        for pattern in $CP_FILES; do
+          matches=( $pattern )
+          if [ ${#matches[@]} -eq 0 ]; then files+=("$pattern"); else files+=("${matches[@]}"); fi
+        done
+        extra=()
+        if [ -n "$CP_MODEL" ]; then extra+=(--model "$CP_MODEL"); fi
+        if [ -n "$CP_ARGS" ]; then read -r -a more <<< "$CP_ARGS"; extra+=("${more[@]}"); fi
+        saysso check "${files[@]}" --fail-under "$CP_FAIL_UNDER" --sarif "$CP_SARIF" "${extra[@]}"

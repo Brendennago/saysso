@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "saysso"
+version = "0.1.0"
+description = "pytest for citations: checks that every cited source actually supports the claim it is attached to, with exact quotes and offsets."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "saysso contributors" }]
+keywords = ["citations", "fact-checking", "llm", "deep-research", "rag", "verification", "mcp", "hallucination"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Topic :: Text Processing :: Linguistic",
+]
+# Two runtime dependencies on purpose: small, auditable supply chain.
+dependencies = [
+  "httpx>=0.27",
+  "rapidfuzz>=3.6",
+]
+
+[project.optional-dependencies]
+pdf = ["pymupdf>=1.24"]
+mcp = ["mcp>=1.9"]
+all = ["pymupdf>=1.24", "mcp>=1.9"]
+dev = ["pytest>=8", "pymupdf>=1.24", "mcp>=1.9"]
+
+[project.scripts]
+saysso = "saysso.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Brendennago/saysso"
+Issues = "https://github.com/Brendennago/saysso/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/saysso"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
