@@ -7,25 +7,30 @@ cited source actually says what the report claims, with the exact quote and char
 
 ```
 $ saysso check examples/demo_report.md
+saysso 0.1.0: examples/demo_report.md
 7 cited claim(s), 4 source(s), 0 unreachable
 
   ≠ c2    CONTRADICTED       line 3    [1] en.wikipedia.org
         The tower is 512 metres tall.
         [1] number-gate: claim says 512, source says 330 metres
+            source: medium; tertiary source: prefer the primary source it cites
   ? c3    UNCERTAIN          line 5    [2] en.wikipedia.org
         Mount Everest's elevation of 8,849 m was established by a Chinese-Nepali survey.
         [2] lexical: partial overlap (38% of key terms); needs a model or a human
+            source: medium; tertiary source: prefer the primary source it cites
   ? c4    UNCERTAIN          line 5    [3] en.wikipedia.org
         The Great Wall of China is visible to the naked eye from the Moon.
         [3] lexical: negation differs between claim and source; needs a model or a human
+            source: medium; tertiary source: prefer the primary source it cites
   ? c6    UNCERTAIN          line 7    [4] en.wikipedia.org
         Python is the most widely used language for embedded firmware on microcontrollers.
         [4] lexical: negation differs between claim and source; needs a model or a human
+            source: medium; tertiary source: prefer the primary source it cites
   ∅ c7    SOURCE-UNREACHABLE line 9    [5] -
         A 2024 industry survey found that 73% of firms adopted the framework.
         [5] parse: reference has no URL (title only: State of the Framework Report 2024, Example Analytics)
 
-======== 2 supported, 1 contradicted, 1 source-unreachable, 3 uncertain ========
+======== 2 supported, 1 contradicted, 1 source-unreachable, 3 uncertain in 1.25s ========
 faithfulness 66.7% of 3 judged (3 need a model or human; try --model) | no model (deterministic checks only) | 4 fetches, 0 searches
 ```
 
