@@ -7,7 +7,7 @@ name = "saysso"
 version = "0.1.0"
 description = "pytest for citations: checks that every cited source actually supports the claim it is attached to, with exact quotes and offsets."
 readme = "README.md"
-license = "MIT"
+license = "AGPL-3.0-or-later"
 requires-python = ">=3.10"
 authors = [{ name = "saysso contributors" }]
 keywords = ["citations", "fact-checking", "llm", "deep-research", "rag", "verification", "mcp", "hallucination"]

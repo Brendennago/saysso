@@ -1,7 +1,7 @@
 ---
 name: saysso
 description: Fact-check the citations in a research report or answer by comparing every claim with the source it cites, with exact quotes as proof. Use this whenever the user asks to verify sources, audit citations, fact-check a deep-research report, or check whether a link really says what was claimed, and also before you hand over any answer of your own that cites web pages or papers. Catches wrong numbers, sources that never say the claimed thing, dead or blocked links, retracted papers, and AI chat answers cited as evidence. Prefer this over eyeballing links or saying a citation looks right.
-license: MIT
+license: AGPL-3.0-or-later
 compatibility: Needs Python 3.10+ with uv or pipx, and network access to fetch the cited pages. A model API key is optional; without one only deterministic checks run.
 allowed-tools: Bash(saysso:*) Bash(uvx:*) Read
 ---
