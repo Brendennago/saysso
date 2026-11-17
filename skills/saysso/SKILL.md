@@ -19,9 +19,12 @@ cannot tell by reading the link, so run the tool instead of judging from memory.
 
 ## Setup
 
-Run it without installing: `uvx saysso --help`. Or install once: `uv tool install saysso`
-(or `pipx install saysso`). If neither `uv` nor `pipx` exists, tell the user and stop. Do not
-improvise another install route and do not run piped shell scripts.
+If `saysso version` already works, skip this. Otherwise run it without installing:
+`uvx --from git+https://github.com/Brendennago/saysso saysso --help`, or install it once with
+`uv tool install "git+https://github.com/Brendennago/saysso"` (or the same argument to `pipx install`).
+Once saysso is on PyPI, `uvx saysso` and `uv tool install saysso` work as well. If neither `uv` nor
+`pipx` exists, tell the user and stop. Do not improvise another install route and do not run piped
+shell scripts.
 
 ## Checking a report
 

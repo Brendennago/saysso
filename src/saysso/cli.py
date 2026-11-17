@@ -24,6 +24,17 @@ from .search import SearchError
 
 EXIT_OK, EXIT_FAIL, EXIT_USAGE = 0, 1, 2
 
+_EXAMPLES = """examples:
+  saysso check report.md                     check a report, no model, no cost
+  saysso check report.md -v --html out.html  show every claim and write a web page
+  saysso check report.md --model anthropic/<model-name>
+                                             let a model settle the uncertain claims
+  saysso claim "The tower is 330 metres tall." https://en.wikipedia.org/wiki/Eiffel_Tower
+
+Without --model, only exact checks run (wording, numbers, keywords). Claims those cannot
+settle are marked UNCERTAIN rather than guessed. Docs: https://github.com/Brendennago/saysso
+"""
+
 
 def _common(p: argparse.ArgumentParser) -> None:
     g = p.add_argument_group("models (all optional; without one, only deterministic checks run, at zero cost)")
@@ -32,30 +43,34 @@ def _common(p: argparse.ArgumentParser) -> None:
     g.add_argument("--nli", help="small local grounding model, e.g. ollama/bespoke-minicheck")
     g.add_argument("--judge-all", action="store_true", help="send every claim to the model, not just uncertain ones")
     b = p.add_argument_group("budget")
-    b.add_argument("--max-llm-calls", type=int, default=60)
+    b.add_argument("--max-llm-calls", type=int, default=60, help="stop calling the model after this many calls (default 60)")
     b.add_argument("--max-cost", type=float, help="stop calling the model after this many USD (needs --price-in/out)")
     b.add_argument("--price-in", type=float, help="USD per 1M input tokens, for cost tracking")
     b.add_argument("--price-out", type=float, help="USD per 1M output tokens")
     f = p.add_argument_group("fetching")
-    f.add_argument("--timeout", type=float, default=20.0)
-    f.add_argument("--concurrency", type=int, default=8)
-    f.add_argument("--no-cache", action="store_true")
-    f.add_argument("--no-wayback", action="store_true")
-    f.add_argument("--no-retraction-check", action="store_true")
+    f.add_argument("--timeout", type=float, default=20.0, help="seconds to wait for each page (default 20)")
+    f.add_argument("--concurrency", type=int, default=8, help="pages fetched at once (default 8)")
+    f.add_argument("--no-cache", action="store_true", help="fetch pages again instead of reusing earlier runs")
+    f.add_argument("--no-wayback", action="store_true", help="don't fall back to the Wayback Machine for dead links")
+    f.add_argument("--no-retraction-check", action="store_true", help="skip the Crossref/OpenAlex retraction lookup")
     f.add_argument("--allow-private", action="store_true", help="allow localhost/private addresses (testing only)")
     f.add_argument("--email", help="contact for Crossref/OpenAlex polite pools")
-    p.add_argument("-v", "--verbose", action="store_true")
-    p.add_argument("-q", "--quiet", action="store_true")
+    p.add_argument("-v", "--verbose", action="store_true", help="show every claim, including supported ones, with quotes")
+    p.add_argument("-q", "--quiet", action="store_true", help="print nothing; rely on the exit code and output files")
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="saysso",
-        description="pytest for citations: checks that each cited source actually supports the claim it is attached to.",
+        description="Check that each cited source actually says what the report claims it says.",
+        epilog=_EXAMPLES,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = p.add_subparsers(dest="cmd")
 
-    c = sub.add_parser("check", help="check a report (markdown, text, HTML, or Claude/OpenAI API JSON)")
+    c = sub.add_parser("check", help="check a report (markdown, text, HTML, or Claude/OpenAI API JSON)",
+                       description="Check every cited claim in a report against the source it cites.",
+                       epilog=_EXAMPLES, formatter_class=argparse.RawDescriptionHelpFormatter)
     c.add_argument("files", nargs="+", help="report files, or - for stdin")
     _common(c)
     r = c.add_argument_group("repair (persistent search for the real source)")
@@ -67,21 +82,22 @@ def build_parser() -> argparse.ArgumentParser:
     o = c.add_argument_group("output")
     o.add_argument("--format", choices=["text", "json"], default="text", help="what to print on stdout")
     o.add_argument("--json", metavar="PATH", help="write the full JSON evidence report")
-    o.add_argument("--html", nargs="?", const="saysso-report.html", metavar="PATH")
+    o.add_argument("--html", nargs="?", const="saysso-report.html", metavar="PATH",
+                   help="write a self-contained HTML report (default name: saysso-report.html)")
     o.add_argument("--sarif", metavar="PATH", help="SARIF for GitHub code scanning")
     o.add_argument("--fail-under", type=float, help="exit 1 if faithfulness is below this (0-1)")
-    o.add_argument("--fail-on-unreachable", action="store_true")
+    o.add_argument("--fail-on-unreachable", action="store_true", help="exit 1 if any source could not be read")
     o.add_argument("--inherit-citations", action="store_true",
                    help="uncited sentences inherit the next citation in their paragraph")
 
     cl = sub.add_parser("claim", help="check one claim against one URL")
-    cl.add_argument("claim")
-    cl.add_argument("url")
+    cl.add_argument("claim", help="the sentence to check, in quotes")
+    cl.add_argument("url", help="the page that is supposed to support it")
     _common(cl)
     cl.add_argument("--format", choices=["text", "json"], default="text")
 
     lo = sub.add_parser("locate", help="find a quote in a URL or file; prints exact character offsets")
-    lo.add_argument("quote")
+    lo.add_argument("quote", help="the text to find, in quotes")
     lo.add_argument("source", help="URL or local file")
     lo.add_argument("--allow-private", action="store_true")
     lo.add_argument("--no-cache", action="store_true")

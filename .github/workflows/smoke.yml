@@ -45,3 +45,13 @@ jobs:
             demo.*
             model.*
             dist/
+  action:
+    # Runs this repo's own GitHub Action the way a user would (deterministic checks, live pages).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          files: examples/demo_report.md
+          fail-under: "0"
+      - run: test -s saysso.sarif && echo "SARIF written"

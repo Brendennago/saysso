@@ -2,8 +2,13 @@
 
 **Your AI cited it. Does the source say so?**
 
-saysso is pytest for citations. Give it any AI research report and it checks, claim by claim, whether each
-cited source actually says what the report claims, with the exact quote and character range as proof.
+AI research tools add footnotes to everything, and the links usually work. Whether the page behind a
+link actually says what the sentence claims is another matter. saysso checks that for you: give it a
+report, and for every cited claim it opens the source, looks for the claim, and shows you the exact
+quote it found (or tells you it found nothing).
+
+It runs on your computer, works without any AI model or API key, and costs nothing unless you choose
+to add a model.
 
 ```
 $ saysso check examples/demo_report.md
@@ -34,8 +39,9 @@ saysso 0.1.0: examples/demo_report.md
 faithfulness 66.7% of 3 judged (3 need a model or human; try --model) | no model (deterministic checks only) | 4 fetches, 0 searches
 ```
 
-That run used no model and cost nothing. The three "uncertain" claims are the ones keyword matching
-cannot settle (synonyms, negation); add `--model` and only those go to a model.
+In plain terms: the tower's height is wrong (the source says 330 m, not 512 m), one claim has no link at
+all, and three claims need a closer look, because matching words cannot tell "is visible" from "is not
+visible". Supported claims are hidden unless you add `-v`.
 
 ## Why
 
@@ -46,27 +52,124 @@ of them more than 94% of cited links worked, yet the share of claims their sourc
 ranged from 24% to 77%, and it fell as agents made more tool calls. You cannot see that by clicking a
 link. saysso reads the page for you and keeps the receipts.
 
-## Quickstart
+
+## Install
+
+You need Python 3.10 or newer. Install saysso as a command-line tool with
+[pipx](https://pipx.pypa.io) or [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uvx saysso check report.md                                     # try it with no install
-
-uv tool install saysso                                         # or: pipx install saysso
-saysso check report.md                                         # deterministic checks only, no cost
-saysso check report.md --model anthropic/claude-haiku-5-5      # a model, only for uncertain claims
-saysso check report.md --model codex                           # your ChatGPT plan (see below)
-saysso check report.md --fix --search brave                    # hunt for the real source of failures
-saysso claim "The tower is 330 metres tall." https://en.wikipedia.org/wiki/Eiffel_Tower
-saysso locate "the tallest structure in Paris" https://en.wikipedia.org/wiki/Eiffel_Tower
+pipx install "git+https://github.com/Brendennago/saysso"
 ```
 
-PDF sources need `pip install "saysso[pdf]"`; the MCP server needs `"saysso[mcp]"`.
+or
 
-**Inputs it understands:** markdown or text with `[1]`, `[1, 3]`, `[2-4]`, `[^1]` markers and a Sources
-list; inline links; footnote definitions; HTML; and the JSON of Anthropic Messages responses (with
-citations) and OpenAI Responses or Chat Completions responses (with `url_citation` annotations).
-References that have a title but no link (common in app exports) are reported as unreachable, or
-resolved by search when `--search` is set.
+```bash
+uv tool install "git+https://github.com/Brendennago/saysso"
+```
+
+Check that it worked:
+
+```bash
+saysso version
+```
+
+saysso is not on PyPI yet. Once it is, `pipx install saysso` will do the same thing. If your reports
+cite PDFs, install the PDF extra instead:
+`pipx install "saysso[pdf] @ git+https://github.com/Brendennago/saysso"`.
+
+## Check your first report
+
+**1. Save the report as a file.** Copy the report out of ChatGPT, Claude, Gemini, Perplexity or any
+other tool and paste it into a plain text file, for example `report.md`. Keep two things:
+
+- the citation markers in the text, such as `[1]`, `[2, 3]` or `[^1]` (inline links work too), and
+- the list of sources at the end, with their links.
+
+saysso also reads saved HTML pages and the raw JSON from the Anthropic and OpenAI APIs.
+
+**2. Run it.**
+
+```bash
+saysso check report.md
+```
+
+It fetches each cited page (this takes a few seconds per source), then prints the claims that did not
+pass. Add `-v` to see every claim, including the ones that passed, with the quote that supports each.
+
+**3. Want something easier to read or share?** Write a self-contained web page:
+
+```bash
+saysso check report.md --html report.html
+```
+
+## Reading the results
+
+Each claim gets one verdict:
+
+| Mark | Verdict | What it means | What to do |
+|---|---|---|---|
+| ✔ | SUPPORTED | The source says it. The quote is shown with `-v`. | Nothing. |
+| ◐ | PARTIAL | The source says something close, but a number, date, scope or hedge differs. | Read the quote and fix the wording. |
+| ✘ | UNSUPPORTED | The source was read, and the claim is not in it. | Find a better source, or try `--fix`. |
+| ≠ | CONTRADICTED | The source says something different, for example another number. | Correct the claim. |
+| ⇄ | WRONG-SOURCE | Not in the cited page, but `--fix` found another page that supports it. | Swap in the new link. |
+| ∅ | SOURCE-UNREACHABLE | The page could not be read: dead, blocked, paywalled, or no link at all. This says nothing about whether the claim is true. | Open the link yourself, or supply a working one. |
+| ? | UNCERTAIN | Word matching alone cannot decide (synonyms, negation). | Check it yourself, or add a model (next section). |
+
+The summary line gives a **faithfulness** score: of the claims saysso could judge, the share whose source
+backs them up (PARTIAL counts as half). Unreachable and uncertain claims are left out of the score and
+counted separately, so a low number of judged claims means you should look at those.
+
+## Settle the uncertain claims with a model
+
+Without a model, saysso only uses exact checks: matching wording, matching numbers, and keyword overlap.
+To settle the UNCERTAIN claims, give it a model. Only those claims are sent, in small batches, along with
+a few short passages from the source rather than whole pages. Set your provider's API key, then pass
+`--model provider/model-name`:
+
+```bash
+export ANTHROPIC_API_KEY=...          # or OPENAI_API_KEY, GEMINI_API_KEY, and so on
+saysso check report.md --model anthropic/<model-name>
+```
+
+Use any model name your provider offers. To avoid typing it each time, set `SAYSSO_MODEL` instead of
+passing `--model`. Results are cached, so running the same report again costs nothing, and
+`--max-llm-calls` (default 60) caps spending. Local models through Ollama
+(`--model ollama/<model-name>`) cost nothing. All providers are listed under
+[Modes and cost](#modes-and-cost).
+
+## More things you can do
+
+```bash
+# Check one sentence against one page
+saysso claim "The tower is 330 metres tall." https://en.wikipedia.org/wiki/Eiffel_Tower
+
+# Find where a quote appears in a page, with exact character positions
+saysso locate "the tallest structure in Paris" https://en.wikipedia.org/wiki/Eiffel_Tower
+
+# Search the web for real sources for the claims that failed (writes report.saysso.md)
+saysso check report.md --fix --search openalex,crossref
+
+# Save the full evidence as JSON
+saysso check report.md --json results.json
+```
+
+`saysso --help` and `saysso check --help` list every option.
+
+## Troubleshooting
+
+- **"no cited claims found"**: the file has no citation markers that saysso recognises. Make sure the
+  `[1]`-style markers and the source list survived copying, or that the links are still links.
+- **"ANTHROPIC_API_KEY is not set"** (or another key): you asked for a model but the key is not in your
+  environment. Run `export ANTHROPIC_API_KEY=...` in the same terminal, or leave out `--model`.
+- **"model spec must look like provider/model"**: write the provider first, for example
+  `--model openai/<model-name>`, not just the model name.
+- **Lots of SOURCE-UNREACHABLE**: some sites block automated readers or sit behind paywalls. Dead links
+  are retried through the Wayback Machine automatically. PDFs need the PDF extra (see [Install](#install)).
+- **Results look stale**: pages are cached between runs. Add `--no-cache` to fetch them again.
+- **Using it in CI**: `saysso check` exits with 1 when `--fail-under` is set and faithfulness falls
+  below it, and with 2 for usage errors.
 
 ## How it works
 
@@ -164,23 +267,33 @@ Reported separately from whether it supports the claim:
 
 ## CI
 
+Add saysso to a GitHub workflow to check reports on every pull request:
+
 ```yaml
-- uses: Brendennago/saysso@<full-commit-sha>   # pin by SHA, not by tag
-  with:
-    files: "docs/**/*.md"
-    fail-under: "0.9"
+name: citations
+on: pull_request
+jobs:
+  saysso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Brendennago/saysso@<full-commit-sha>   # pin by SHA, not by tag
+        with:
+          files: "docs/**/*.md"
+          fail-under: "0.9"
 ```
 
 The job fails when faithfulness drops below the threshold and writes `saysso.sarif`; upload it with
-`github/codeql-action/upload-sarif` to see findings on the lines they refer to. Provider keys go in the
-job's `env`, never in `with`.
+`github/codeql-action/upload-sarif` to see findings on the lines they refer to. To use a model, pass
+`model:` and put the provider key in the step's `env` from a repository secret, never in `with`.
+Without a `version`, the action installs saysso from the same commit you pinned.
 
 ## Use it from an agent
 
 **Claude Code (MCP):**
 
 ```bash
-claude mcp add --transport stdio saysso -- uvx --from "saysso[mcp]" saysso mcp
+claude mcp add --transport stdio saysso -- uvx --from "saysso[mcp] @ git+https://github.com/Brendennago/saysso" saysso mcp
 ```
 
 Tools: `verify_report`, `check_claim`, `locate_quote`. Results are compact (only failing claims) to keep

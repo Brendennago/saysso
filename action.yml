@@ -21,7 +21,7 @@ inputs:
     description: Where to write SARIF output (upload it with github/codeql-action/upload-sarif).
     default: saysso.sarif
   version:
-    description: saysso version to install. Pin it for reproducible runs; empty installs the latest.
+    description: saysso version to install from PyPI. Empty installs the copy of saysso at the commit you pinned this action to.
     default: ""
 runs:
   using: composite
@@ -35,7 +35,7 @@ runs:
       env:
         CP_VERSION: ${{ inputs.version }}
       run: |
-        if [ -n "$CP_VERSION" ]; then python -m pip install "saysso==$CP_VERSION"; else python -m pip install saysso; fi
+        if [ -n "$CP_VERSION" ]; then python -m pip install "saysso==$CP_VERSION"; else python -m pip install "$GITHUB_ACTION_PATH"; fi
     - name: Check citations
       shell: bash
       # Inputs go through env vars, never interpolated into the script, so they cannot inject shell commands.
