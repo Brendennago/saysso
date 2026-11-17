@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "saysso"
 version = "0.1.0"
-description = "pytest for citations: checks that every cited source actually supports the claim it is attached to, with exact quotes and offsets."
+description = "Checks that every cited source actually says what the report claims, with the exact quote as evidence."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 requires-python = ">=3.10"

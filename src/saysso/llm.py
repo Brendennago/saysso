@@ -209,7 +209,7 @@ class AnthropicLLM(BaseLLM):
 
     async def _call(self, system, prefix, suffix, schema, max_tokens):
         if not self.api_key:
-            raise LLMError("ANTHROPIC_API_KEY is not set")
+            raise LLMError("ANTHROPIC_API_KEY is not set. Run `export ANTHROPIC_API_KEY=...` first, or drop --model")
         first: dict[str, Any] = {"type": "text", "text": prefix}
         if len(prefix) > 6000:  # big enough to clear the minimum cacheable prompt size on most models
             first["cache_control"] = {"type": "ephemeral"}
@@ -310,7 +310,7 @@ def make_llm(spec: str | None, budget: Budget, cache: Cache, client: httpx.Async
     if provider == "codex":
         return CodexCLI(model, **kw)
     if not model:
-        raise LLMError(f"model spec must look like provider/model, got {spec!r}")
+        raise LLMError(f"model spec must look like provider/model (for example openai/<model-name>), got {spec!r}")
     if provider == "anthropic":
         return AnthropicLLM(model, os.environ.get("ANTHROPIC_API_KEY"), **kw)
     if provider == "ollama":
@@ -325,7 +325,7 @@ def make_llm(spec: str | None, budget: Budget, cache: Cache, client: httpx.Async
         base, env = PROVIDERS[provider]
         key = os.environ.get(env)
         if not key:
-            raise LLMError(f"{env} is not set (needed for {spec})")
+            raise LLMError(f"{env} is not set (needed for {spec}). Run `export {env}=...` first, or drop --model")
         return OpenAICompatible(provider, model, base, key, **kw)
     raise LLMError(f"unknown provider {provider!r}; use anthropic, openai, openrouter, gemini, groq, deepseek, "
                    "ollama, compat, or codex")
